@@ -1,0 +1,591 @@
+import { useState, useMemo } from "react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from "recharts";
+
+// ─── MOCK DATA GENERATION ────────────────────────────────────────────────────
+
+const STUDENTS = [
+  { id: "s01", name: "Amara Osei", email: "aosei@university.edu" },
+  { id: "s02", name: "Blake Nguyen", email: "bnguyen@university.edu" },
+  { id: "s03", name: "Carmen Reyes", email: "creyes@university.edu" },
+  { id: "s04", name: "Darius Kim", email: "dkim@university.edu" },
+  { id: "s05", name: "Elena Marchetti", email: "emarchetti@university.edu" },
+  { id: "s06", name: "Felix Abara", email: "fabara@university.edu" },
+  { id: "s07", name: "Grace Liu", email: "gliu@university.edu" },
+  { id: "s08", name: "Hiro Tanaka", email: "htanaka@university.edu" },
+  { id: "s09", name: "Imani Walker", email: "iwalker@university.edu" },
+  { id: "s10", name: "Jonas Eriksson", email: "jeriksson@university.edu" },
+  { id: "s11", name: "Kira Patel", email: "kpatel@university.edu" },
+  { id: "s12", name: "Luca Ferraro", email: "lferraro@university.edu" },
+  { id: "s13", name: "Maya Chen", email: "mchen@university.edu" },
+  { id: "s14", name: "Niko Papadopoulos", email: "npapadopoulos@university.edu" },
+  { id: "s15", name: "Olivia Mensah", email: "omensah@university.edu" },
+  { id: "s16", name: "Pedro Alves", email: "palves@university.edu" },
+  { id: "s17", name: "Quinn Nakamura", email: "qnakamura@university.edu" },
+  { id: "s18", name: "Rania Haddad", email: "rhaddad@university.edu" },
+  { id: "s19", name: "Samuel Boateng", email: "sboateng@university.edu" },
+  { id: "s20", name: "Tanya Volkov", email: "tvolkov@university.edu" },
+  { id: "s21", name: "Uma Krishnan", email: "ukrishnan@university.edu" },
+  { id: "s22", name: "Victor Okonkwo", email: "vokonkwo@university.edu" },
+  { id: "s23", name: "Wren Castellano", email: "wcastellano@university.edu" },
+  { id: "s24", name: "Xara Petrov", email: "xpetrov@university.edu" },
+  { id: "s25", name: "Yusuf Ibrahim", email: "yibrahim@university.edu" },
+];
+
+const WEEKS = [1, 2, 3, 4, 5, 6, 7];
+const MODULES = ["Sampling Bias","Confounding Variables","Validity Threats","Research Design","Causal Inference","Measurement Error","Ethics & Equity"];
+const CRITIQUE_FOCUS = ["selection-bias","confounding","internal-validity","external-validity","causal-interpretation","measurement-bias","ethical-concern"];
+const QUESTION_TYPES = ["gap","ambiguity","missing-info"];
+
+function seededRand(seed) {
+  let s = seed;
+  return () => { s = (s * 16807 + 0) % 2147483647; return (s - 1) / 2147483646; };
+}
+
+function generateStatements() {
+  const stmts = [];
+  let id = 1000;
+
+  STUDENTS.forEach((student, si) => {
+    const rand = seededRand(si * 137 + 42);
+    // each student has different engagement patterns
+    const engagementLevel = rand(); // 0=low, 1=high
+    const isStruggling = engagementLevel < 0.25;
+    const isExcellent = engagementLevel > 0.75;
+
+    WEEKS.forEach((week, wi) => {
+      const weekRand = seededRand(si * 31 + wi * 17 + 99);
+      const skipsWeek = weekRand() < (isStruggling ? 0.35 : 0.08);
+      if (skipsWeek) return;
+
+      const base = new Date(2025, 8, 1 + wi * 7); // Sept 1 + week offset
+      const submitHour = Math.floor(weekRand() * 18) + 6;
+      const isLate = weekRand() < (isStruggling ? 0.4 : 0.1);
+      const lateHours = isLate ? (weekRand() * 36 + 1).toFixed(1) : 0;
+      const readMin = Math.floor(weekRand() * 20 + (isExcellent ? 15 : 5));
+      const focus = CRITIQUE_FOCUS[wi % CRITIQUE_FOCUS.length];
+      const module = MODULES[wi];
+
+      const ts = (offsetMin = 0) => {
+        const d = new Date(base);
+        d.setHours(submitHour, Math.floor(weekRand() * 60) + offsetMin);
+        return d.toISOString();
+      };
+
+      // launched
+      stmts.push({ id: `stmt-${id++}`, actor: student, verb: "launched", week, module, focus,
+        object: `week${week}-article`, objectName: `Week ${week} Empirical Article`,
+        result: { completion: false }, extensions: { weekNumber: week, moduleTheme: module, articleDOI: `10.1037/edu000${week}`, readDurationMinutes: readMin },
+        timestamp: ts(0) });
+
+      // experienced (read)
+      stmts.push({ id: `stmt-${id++}`, actor: student, verb: "experienced", week, module, focus,
+        object: `week${week}-article`, objectName: `Week ${week} Empirical Article`,
+        result: { completion: true, duration: `PT${readMin}M` },
+        extensions: { weekNumber: week, moduleTheme: module, readDurationMinutes: readMin },
+        timestamp: ts(readMin) });
+
+      // step 1
+      const wc1 = Math.floor(weekRand() * 30 + (isExcellent ? 40 : 15));
+      stmts.push({ id: `stmt-${id++}`, actor: student, verb: "attempted", week, module, focus,
+        object: `week${week}-step1`, objectName: `Step 1: Identification — Week ${week}`,
+        result: { completion: false }, extensions: { weekNumber: week, critiqueFocus: focus },
+        timestamp: ts(readMin + 2) });
+      stmts.push({ id: `stmt-${id++}`, actor: student, verb: "answered", week, module, focus,
+        object: `week${week}-step1`, objectName: `Step 1: Identification — Week ${week}`,
+        result: { completion: true, duration: `PT${Math.floor(weekRand()*8+3)}M`, wordCount: wc1 },
+        extensions: { weekNumber: week, critiqueFocus: focus, wordCount: wc1 },
+        timestamp: ts(readMin + 10) });
+
+      // step 2
+      const wc2 = Math.floor(weekRand() * 50 + (isExcellent ? 60 : 30));
+      stmts.push({ id: `stmt-${id++}`, actor: student, verb: "attempted", week, module, focus,
+        object: `week${week}-step2`, objectName: `Step 2: Significance — Week ${week}`,
+        result: { completion: false }, extensions: { weekNumber: week, priorStepCompleted: true },
+        timestamp: ts(readMin + 12) });
+      stmts.push({ id: `stmt-${id++}`, actor: student, verb: "answered", week, module, focus,
+        object: `week${week}-step2`, objectName: `Step 2: Significance — Week ${week}`,
+        result: { completion: true, duration: `PT${Math.floor(weekRand()*10+5)}M`, wordCount: wc2 },
+        extensions: { weekNumber: week, critiqueFocus: focus, wordCount: wc2 },
+        timestamp: ts(readMin + 25) });
+
+      // step 3
+      const wc3 = Math.floor(weekRand() * 20 + (isExcellent ? 25 : 10));
+      const qtype = QUESTION_TYPES[Math.floor(weekRand() * 3)];
+      stmts.push({ id: `stmt-${id++}`, actor: student, verb: "attempted", week, module, focus,
+        object: `week${week}-step3`, objectName: `Step 3: Critical Inquiry — Week ${week}`,
+        result: { completion: false }, extensions: { weekNumber: week, priorStepsCompleted: 2 },
+        timestamp: ts(readMin + 27) });
+      stmts.push({ id: `stmt-${id++}`, actor: student, verb: "answered", week, module, focus,
+        object: `week${week}-step3`, objectName: `Step 3: Critical Inquiry — Week ${week}`,
+        result: { completion: true, duration: `PT${Math.floor(weekRand()*6+3)}M`, wordCount: wc3 },
+        extensions: { weekNumber: week, critiqueFocus: focus, wordCount: wc3, questionType: qtype },
+        timestamp: ts(readMin + 35) });
+
+      // completed
+      const totalWC = wc1 + wc2 + wc3;
+      const totalDur = readMin + Math.floor(weekRand() * 20 + 35);
+      stmts.push({ id: `stmt-${id++}`, actor: student, verb: "completed", week, module, focus,
+        object: `week${week}-critique`, objectName: `Micro-Critique Week ${week}`,
+        result: { completion: true, success: true, duration: `PT${totalDur}M` },
+        extensions: { weekNumber: week, moduleTheme: module, totalWordCount: totalWC,
+          submissionStatus: isLate ? "late" : "on-time", hoursAfterDeadline: lateHours,
+          allStepsCompleted: true },
+        timestamp: ts(readMin + 38) });
+
+      // scored (instructor)
+      const scoreMax = 10;
+      const scoreRaw = isExcellent
+        ? Math.floor(weekRand() * 2 + 8)
+        : isStruggling
+        ? Math.floor(weekRand() * 3 + 5)
+        : Math.floor(weekRand() * 3 + 6);
+      stmts.push({ id: `stmt-${id++}`,
+        actor: { id: "instructor01", name: "Dr. Rivera", email: "mrivera@university.edu" },
+        verb: "scored", week, module, focus,
+        object: `week${week}-critique`, objectName: `Micro-Critique Week ${week} — Score`,
+        result: { score: { raw: scoreRaw, max: scoreMax }, success: scoreRaw >= 7 },
+        extensions: { weekNumber: week, studentId: student.id, rubricDimension: "all", feedbackLength: Math.floor(weekRand() * 80 + 20) },
+        studentId: student.id,
+        timestamp: ts(readMin + 50) });
+    });
+  });
+
+  return stmts;
+}
+
+const ALL_STATEMENTS = generateStatements();
+
+// ─── QUERY ENGINE ─────────────────────────────────────────────────────────────
+
+function queryStatements({ verb, week, studentId, limit = 50 }) {
+  let results = [...ALL_STATEMENTS];
+  if (verb && verb !== "all") results = results.filter(s => s.verb === verb);
+  if (week && week !== "all") results = results.filter(s => s.week === Number(week));
+  if (studentId && studentId !== "all") {
+    results = results.filter(s => s.actor.id === studentId || s.studentId === studentId);
+  }
+  return results.slice(0, limit);
+}
+
+// ─── DERIVED ANALYTICS ────────────────────────────────────────────────────────
+
+function getCohortStats() {
+  const completions = ALL_STATEMENTS.filter(s => s.verb === "completed");
+  const scores = ALL_STATEMENTS.filter(s => s.verb === "scored");
+  const byWeek = WEEKS.map(w => {
+    const wc = completions.filter(s => s.week === w);
+    const ws = scores.filter(s => s.week === w);
+    const avgScore = ws.length ? (ws.reduce((a, s) => a + s.result.score.raw, 0) / ws.length).toFixed(1) : 0;
+    const lateCount = wc.filter(s => s.extensions.submissionStatus === "late").length;
+    const totalWC = completions.filter(s => s.week === w).reduce((a, s) => a + (s.extensions.totalWordCount || 0), 0);
+    const avgWC = wc.length ? Math.round(totalWC / wc.length) : 0;
+    return { week: `Wk ${w}`, completions: wc.length, avgScore: Number(avgScore), lateCount, avgWordCount: avgWC };
+  });
+  return byWeek;
+}
+
+function getStudentProfile(studentId) {
+  const stmts = ALL_STATEMENTS.filter(s => s.actor.id === studentId || s.studentId === studentId);
+  const completions = stmts.filter(s => s.verb === "completed" && s.actor.id === studentId);
+  const scores = stmts.filter(s => s.verb === "scored");
+  return WEEKS.map(w => {
+    const c = completions.find(s => s.week === w);
+    const sc = scores.find(s => s.week === w);
+    return {
+      week: `Wk ${w}`,
+      completed: !!c,
+      late: c?.extensions?.submissionStatus === "late",
+      score: sc?.result?.score?.raw ?? null,
+      wordCount: c?.extensions?.totalWordCount ?? null,
+      readMin: c ? ALL_STATEMENTS.find(s => s.actor.id === studentId && s.verb === "experienced" && s.week === w)?.extensions?.readDurationMinutes ?? null : null,
+    };
+  });
+}
+
+// ─── COMPONENTS ───────────────────────────────────────────────────────────────
+
+const VERB_COLORS = {
+  launched: "#3B82F6", experienced: "#06B6D4", attempted: "#10B981",
+  answered: "#14B8A6", completed: "#F59E0B", scored: "#8B5CF6",
+};
+
+const VerbTag = ({ verb }) => (
+  <span style={{
+    padding: "2px 8px", borderRadius: 12, fontSize: 10, fontWeight: 700,
+    background: (VERB_COLORS[verb] || "#94a3b8") + "20",
+    color: VERB_COLORS[verb] || "#94a3b8",
+    border: `1px solid ${VERB_COLORS[verb] || "#94a3b8"}40`,
+    fontFamily: "monospace", whiteSpace: "nowrap",
+  }}>{verb}</span>
+);
+
+const StatCard = ({ label, value, sub, accent }) => (
+  <div style={{
+    background: "#0f1729", border: `1px solid ${accent}30`,
+    borderRadius: 10, padding: "16px 20px", flex: 1, minWidth: 120,
+    borderTop: `3px solid ${accent}`,
+  }}>
+    <div style={{ fontSize: 26, fontWeight: 800, color: accent, fontFamily: "'Syne', sans-serif" }}>{value}</div>
+    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, fontFamily: "'Syne', sans-serif" }}>{label}</div>
+    {sub && <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>{sub}</div>}
+  </div>
+);
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: "#1e2d45", border: "1px solid #334155", borderRadius: 8, padding: "10px 14px" }}>
+      <div style={{ color: "#94a3b8", fontSize: 11, marginBottom: 6 }}>{label}</div>
+      {payload.map((p, i) => (
+        <div key={i} style={{ color: p.color, fontSize: 12, fontWeight: 600 }}>
+          {p.name}: {p.value}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default function MockLRS() {
+  const [tab, setTab] = useState("cohort");
+  const [queryVerb, setQueryVerb] = useState("all");
+  const [queryWeek, setQueryWeek] = useState("all");
+  const [queryStudent, setQueryStudent] = useState("all");
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [expandedStmt, setExpandedStmt] = useState(null);
+
+  const cohortStats = useMemo(() => getCohortStats(), []);
+  const queriedStmts = useMemo(() => queryStatements({ verb: queryVerb, week: queryWeek, studentId: queryStudent }), [queryVerb, queryWeek, queryStudent]);
+  const studentProfile = useMemo(() => selectedStudent ? getStudentProfile(selectedStudent) : null, [selectedStudent]);
+
+  const totalStmts = ALL_STATEMENTS.length;
+  const completionRate = Math.round((ALL_STATEMENTS.filter(s => s.verb === "completed").length / (STUDENTS.length * WEEKS.length)) * 100);
+  const avgScore = (ALL_STATEMENTS.filter(s => s.verb === "scored").reduce((a, s) => a + (s.result?.score?.raw || 0), 0) / ALL_STATEMENTS.filter(s => s.verb === "scored").length).toFixed(1);
+  const lateRate = Math.round((ALL_STATEMENTS.filter(s => s.verb === "completed" && s.extensions?.submissionStatus === "late").length / ALL_STATEMENTS.filter(s => s.verb === "completed").length) * 100);
+
+  const selStudent = selectedStudent ? STUDENTS.find(s => s.id === selectedStudent) : null;
+
+  const tabs = [
+    { id: "cohort", label: "Cohort Overview" },
+    { id: "learner", label: "Learner Progress" },
+    { id: "query", label: "Statement Explorer" },
+  ];
+
+  return (
+    <div style={{ background: "#080e1a", minHeight: "100vh", fontFamily: "'Syne', sans-serif", color: "#e2e8f0" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f1729; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        * { box-sizing: border-box; }
+        select { appearance: none; }
+      `}</style>
+
+      {/* Header */}
+      <div style={{ background: "#0a1120", borderBottom: "1px solid #1e2d45", padding: "16px 28px", display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #3B82F6, #8B5CF6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>⚡</div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: -0.3 }}>Mock LRS</div>
+            <div style={{ fontSize: 10, color: "#64748b" }}>QRM 501 · Fall 2025 · Micro-Critique Assignment</div>
+          </div>
+        </div>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#10B981", boxShadow: "0 0 8px #10B981" }} />
+          <span style={{ fontSize: 11, color: "#10B981", fontFamily: "'JetBrains Mono', monospace" }}>{totalStmts} statements</span>
+        </div>
+      </div>
+
+      {/* Stat bar */}
+      <div style={{ display: "flex", gap: 12, padding: "16px 28px", borderBottom: "1px solid #1e2d45" }}>
+        <StatCard label="Total Statements" value={totalStmts} sub="across all weeks" accent="#3B82F6" />
+        <StatCard label="Completion Rate" value={`${completionRate}%`} sub="of expected submissions" accent="#10B981" />
+        <StatCard label="Avg Score" value={`${avgScore}/10`} sub="instructor rubric" accent="#F59E0B" />
+        <StatCard label="Late Submissions" value={`${lateRate}%`} sub="of completed critiques" accent="#F43F5E" />
+        <StatCard label="Active Learners" value={STUDENTS.length} sub="enrolled students" accent="#8B5CF6" />
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 0, padding: "0 28px", borderBottom: "1px solid #1e2d45" }}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            background: "none", border: "none", padding: "12px 20px", cursor: "pointer",
+            color: tab === t.id ? "#3B82F6" : "#64748b", fontFamily: "'Syne', sans-serif",
+            fontWeight: 700, fontSize: 12, letterSpacing: 0.5,
+            borderBottom: tab === t.id ? "2px solid #3B82F6" : "2px solid transparent",
+            transition: "all 0.15s",
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      <div style={{ padding: "24px 28px" }}>
+
+        {/* ── COHORT TAB ── */}
+        {tab === "cohort" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              {/* Completions by week */}
+              <div style={{ background: "#0f1729", borderRadius: 12, padding: "20px", border: "1px solid #1e2d45" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", marginBottom: 16, letterSpacing: 0.8 }}>SUBMISSIONS PER WEEK</div>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={cohortStats} barSize={24}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+                    <XAxis dataKey="week" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, 25]} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="completions" name="On-Time" fill="#3B82F6" radius={[4,4,0,0]} />
+                    <Bar dataKey="lateCount" name="Late" fill="#F43F5E" radius={[4,4,0,0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
+                  {[["#3B82F6","On-Time"],["#F43F5E","Late"]].map(([c,l]) => (
+                    <div key={l} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "#64748b" }}>
+                      <div style={{ width: 8, height: 8, borderRadius: 2, background: c }} />{l}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Avg score by week */}
+              <div style={{ background: "#0f1729", borderRadius: 12, padding: "20px", border: "1px solid #1e2d45" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", marginBottom: 16, letterSpacing: 0.8 }}>AVG SCORE BY WEEK (out of 10)</div>
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={cohortStats}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+                    <XAxis dataKey="week" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, 10]} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Line type="monotone" dataKey="avgScore" name="Avg Score" stroke="#F59E0B" strokeWidth={2.5} dot={{ fill: "#F59E0B", r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Avg word count */}
+            <div style={{ background: "#0f1729", borderRadius: 12, padding: "20px", border: "1px solid #1e2d45" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", marginBottom: 16, letterSpacing: 0.8 }}>AVG TOTAL WORD COUNT PER SUBMISSION</div>
+              <ResponsiveContainer width="100%" height={140}>
+                <BarChart data={cohortStats} barSize={32}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+                  <XAxis dataKey="week" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="avgWordCount" name="Avg Words" fill="#10B981" radius={[4,4,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Roster grid */}
+            <div style={{ background: "#0f1729", borderRadius: 12, padding: "20px", border: "1px solid #1e2d45" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", marginBottom: 16, letterSpacing: 0.8 }}>COHORT COMPLETION HEATMAP — Click a student to drill down</div>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ color: "#64748b", padding: "6px 12px", textAlign: "left", fontWeight: 600 }}>Student</th>
+                      {WEEKS.map(w => <th key={w} style={{ color: "#64748b", padding: "6px 8px", textAlign: "center", fontWeight: 600 }}>Wk {w}</th>)}
+                      <th style={{ color: "#64748b", padding: "6px 12px", textAlign: "center", fontWeight: 600 }}>Avg Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {STUDENTS.map(student => {
+                      const profile = getStudentProfile(student.id);
+                      const scores = profile.filter(p => p.score !== null);
+                      const avgSc = scores.length ? (scores.reduce((a, p) => a + p.score, 0) / scores.length).toFixed(1) : "—";
+                      return (
+                        <tr key={student.id}
+                          onClick={() => { setSelectedStudent(student.id); setTab("learner"); }}
+                          style={{ cursor: "pointer", borderTop: "1px solid #1a2740" }}
+                          onMouseEnter={e => e.currentTarget.style.background = "#152035"}
+                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                          <td style={{ padding: "7px 12px", color: "#cbd5e1", fontWeight: 600, whiteSpace: "nowrap" }}>{student.name}</td>
+                          {profile.map((p, i) => (
+                            <td key={i} style={{ padding: "7px 8px", textAlign: "center" }}>
+                              {p.completed
+                                ? <div style={{ width: 18, height: 18, borderRadius: 4, background: p.late ? "#F43F5E40" : "#10B98140", border: `1.5px solid ${p.late ? "#F43F5E" : "#10B981"}`, margin: "auto", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9 }}>{p.late ? "L" : "✓"}</div>
+                                : <div style={{ width: 18, height: 18, borderRadius: 4, background: "#1e2d45", margin: "auto" }} />}
+                            </td>
+                          ))}
+                          <td style={{ padding: "7px 12px", textAlign: "center", color: "#F59E0B", fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>{avgSc}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ display: "flex", gap: 16, marginTop: 12 }}>
+                {[["#10B981","On-time"], ["#F43F5E","Late (L)"], ["#1e2d45","Missing"]].map(([c,l]) => (
+                  <div key={l} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "#64748b" }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: c }} />{l}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── LEARNER TAB ── */}
+        {tab === "learner" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ fontSize: 11, color: "#64748b" }}>Select learner:</span>
+              <select value={selectedStudent || ""} onChange={e => setSelectedStudent(e.target.value || null)}
+                style={{ background: "#0f1729", border: "1px solid #334155", borderRadius: 8, color: "#e2e8f0", padding: "8px 14px", fontSize: 12, fontFamily: "'Syne', sans-serif", cursor: "pointer", minWidth: 200 }}>
+                <option value="">— choose a student —</option>
+                {STUDENTS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+
+            {selStudent && studentProfile ? (
+              <>
+                <div style={{ background: "#0f1729", borderRadius: 12, padding: "20px", border: "1px solid #3B82F630", borderLeft: "4px solid #3B82F6" }}>
+                  <div style={{ fontWeight: 800, fontSize: 16 }}>{selStudent.name}</div>
+                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>{selStudent.email}</div>
+                  <div style={{ display: "flex", gap: 24, marginTop: 14 }}>
+                    {[
+                      ["Weeks Completed", studentProfile.filter(p => p.completed).length + "/" + WEEKS.length, "#10B981"],
+                      ["Late Submissions", studentProfile.filter(p => p.late).length, "#F43F5E"],
+                      ["Avg Score", (studentProfile.filter(p=>p.score).reduce((a,p)=>a+p.score,0)/Math.max(1,studentProfile.filter(p=>p.score).length)).toFixed(1)+"/10", "#F59E0B"],
+                      ["Avg Read Time", Math.round(studentProfile.filter(p=>p.readMin).reduce((a,p)=>a+p.readMin,0)/Math.max(1,studentProfile.filter(p=>p.readMin).length))+"min", "#8B5CF6"],
+                    ].map(([l,v,c]) => (
+                      <div key={l}>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: c }}>{v}</div>
+                        <div style={{ fontSize: 10, color: "#64748b", marginTop: 1 }}>{l}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  <div style={{ background: "#0f1729", borderRadius: 12, padding: "20px", border: "1px solid #1e2d45" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 14, letterSpacing: 0.8 }}>SCORE OVER WEEKS</div>
+                    <ResponsiveContainer width="100%" height={150}>
+                      <LineChart data={studentProfile.filter(p => p.score !== null)}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+                        <XAxis dataKey="week" tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} domain={[0,10]} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Line type="monotone" dataKey="score" name="Score" stroke="#F59E0B" strokeWidth={2} dot={{ fill: "#F59E0B", r: 4 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div style={{ background: "#0f1729", borderRadius: 12, padding: "20px", border: "1px solid #1e2d45" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 14, letterSpacing: 0.8 }}>WORD COUNT OVER WEEKS</div>
+                    <ResponsiveContainer width="100%" height={150}>
+                      <BarChart data={studentProfile.filter(p => p.wordCount !== null)} barSize={18}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+                        <XAxis dataKey="week" tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Bar dataKey="wordCount" name="Words" fill="#10B981" radius={[4,4,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Week-by-week detail */}
+                <div style={{ background: "#0f1729", borderRadius: 12, padding: "20px", border: "1px solid #1e2d45" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 14, letterSpacing: 0.8 }}>WEEKLY DETAIL</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {studentProfile.map((p, i) => (
+                      <div key={i} style={{
+                        display: "flex", alignItems: "center", gap: 12,
+                        padding: "10px 14px", borderRadius: 8,
+                        background: p.completed ? "#0a1829" : "#12100e",
+                        border: `1px solid ${p.completed ? (p.late ? "#F43F5E30" : "#10B98130") : "#2a1f1f"}`,
+                      }}>
+                        <div style={{ fontWeight: 700, fontSize: 12, color: "#94a3b8", width: 36 }}>Wk {i+1}</div>
+                        <div style={{ flex: 1, display: "flex", gap: 16, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 11, color: p.completed ? "#10B981" : "#F43F5E" }}>
+                            {p.completed ? (p.late ? "⚠ Late" : "✓ Submitted") : "✗ Missing"}
+                          </span>
+                          {p.score !== null && <span style={{ fontSize: 11, color: "#F59E0B" }}>Score: {p.score}/10</span>}
+                          {p.wordCount && <span style={{ fontSize: 11, color: "#64748b" }}>{p.wordCount} words</span>}
+                          {p.readMin && <span style={{ fontSize: 11, color: "#8B5CF6" }}>Read: {p.readMin}min</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={{ color: "#475569", textAlign: "center", padding: 60, fontSize: 14 }}>
+                Select a student above — or click any row in the Cohort heatmap
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── QUERY TAB ── */}
+        {tab === "query" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ background: "#0f1729", borderRadius: 12, padding: "20px", border: "1px solid #1e2d45" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 14, letterSpacing: 0.8 }}>QUERY STATEMENTS</div>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                {[
+                  ["Verb", queryVerb, setQueryVerb, ["all","launched","experienced","attempted","answered","completed","scored"]],
+                  ["Week", queryWeek, setQueryWeek, ["all",...WEEKS.map(String)]],
+                  ["Student", queryStudent, setQueryStudent, ["all",...STUDENTS.map(s => s.id)]],
+                ].map(([label, val, setter, opts]) => (
+                  <div key={label} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    <span style={{ fontSize: 10, color: "#64748b", letterSpacing: 0.5 }}>{label.toUpperCase()}</span>
+                    <select value={val} onChange={e => setter(e.target.value)}
+                      style={{ background: "#152035", border: "1px solid #334155", borderRadius: 6, color: "#e2e8f0", padding: "7px 12px", fontSize: 11, fontFamily: "'Syne', sans-serif", cursor: "pointer", minWidth: 140 }}>
+                      {opts.map(o => {
+                        if (label === "Student" && o !== "all") {
+                          const s = STUDENTS.find(st => st.id === o);
+                          return <option key={o} value={o}>{s?.name}</option>;
+                        }
+                        return <option key={o} value={o}>{o === "all" ? `All ${label}s` : (label === "Week" ? `Week ${o}` : o)}</option>;
+                      })}
+                    </select>
+                  </div>
+                ))}
+                <div style={{ marginLeft: "auto", fontSize: 11, color: "#64748b", fontFamily: "'JetBrains Mono', monospace", alignSelf: "flex-end", paddingBottom: 2 }}>
+                  {queriedStmts.length} results
+                </div>
+              </div>
+            </div>
+
+            {/* Statement list */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {queriedStmts.map(stmt => (
+                <div key={stmt.id}
+                  onClick={() => setExpandedStmt(expandedStmt === stmt.id ? null : stmt.id)}
+                  style={{ background: "#0f1729", borderRadius: 8, border: "1px solid #1e2d45", cursor: "pointer", overflow: "hidden",
+                    borderLeft: `3px solid ${VERB_COLORS[stmt.verb] || "#334155"}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px" }}>
+                    <VerbTag verb={stmt.verb} />
+                    <span style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {stmt.actor.name}
+                    </span>
+                    <span style={{ fontSize: 11, color: "#64748b", whiteSpace: "nowrap" }}>{stmt.objectName}</span>
+                    <span style={{ fontSize: 10, color: "#475569", fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" }}>
+                      {new Date(stmt.timestamp).toLocaleDateString()}
+                    </span>
+                    <span style={{ fontSize: 10, color: "#334155" }}>{expandedStmt === stmt.id ? "▲" : "▼"}</span>
+                  </div>
+                  {expandedStmt === stmt.id && (
+                    <div style={{ padding: "0 16px 14px", borderTop: "1px solid #1e2d45" }}>
+                      <pre style={{ fontSize: 10, color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace", margin: "12px 0 0", lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+{JSON.stringify({
+  id: stmt.id,
+  actor: { name: stmt.actor.name, mbox: `mailto:${stmt.actor.email}` },
+  verb: { id: `https://adlnet.gov/expapi/verbs/${stmt.verb}`, display: { "en-US": stmt.verb } },
+  object: { id: `https://university.edu/courses/qrm/${stmt.object}`, definition: { name: { "en-US": stmt.objectName } } },
+  result: stmt.result,
+  context: { extensions: stmt.extensions },
+  timestamp: stmt.timestamp,
+}, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
