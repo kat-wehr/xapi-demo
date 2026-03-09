@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>xAPI Statement Map — Micro-Critique</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f0f0f;
+    --paper: #f5f2eb;
+    --accent: #c84b2f;
+    --accent2: #2a5c8f;
+    --accent3: #3d7a5a;
+    --muted: #7a7570;
+    --rule: #d4cfc6;
+    --card: #faf8f3;
+    --mono: 'IBM Plex Mono', monospace;
+    --serif: 'DM Serif Display', serif;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-weight: 300;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    border-bottom: 2px solid var(--ink);
+    padding: 2.5rem 3rem 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: 'xAPI';
+    font-family: var(--serif);
+    font-size: 14rem;
+    color: transparent;
+    -webkit-text-stroke: 1px var(--rule);
+    position: absolute;
+    right: -1rem;
+    top: -3rem;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+  }
+  .header-label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: 2.6rem;
+    line-height: 1.1;
+    font-weight: 400;
+    max-width: 600px;
+  }
+  .header-meta {
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-family: var(--mono);
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+  .header-meta span::before {
+    content: '// ';
+    color: var(--rule);
+  }
+
+  /* LEGEND */
+  .legend {
+    display: flex;
+    gap: 1.5rem;
+    padding: 1rem 3rem;
+    border-bottom: 1px solid var(--rule);
+    background: var(--card);
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .legend-label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-right: 0.5rem;
+  }
+  .pill {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    padding: 0.2rem 0.7rem;
+    border-radius: 2px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+  }
+  .pill-verb   { background: #fff0ed; color: var(--accent);  border: 1px solid #f5c5bb; }
+  .pill-object { background: #edf3fb; color: var(--accent2); border: 1px solid #b8cfe8; }
+  .pill-result { background: #edf5f1; color: var(--accent3); border: 1px solid #b2d5c2; }
+  .pill-context{ background: #f5f0ff; color: #6b3fa0;        border: 1px solid #d0b8f0; }
+
+  /* MAIN LAYOUT */
+  main {
+    padding: 2rem 3rem 4rem;
+    max-width: 1300px;
+  }
+
+  /* PHASE SECTION */
+  .phase {
+    margin-bottom: 3rem;
+  }
+  .phase-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--ink);
+  }
+  .phase-number {
+    font-family: var(--serif);
+    font-size: 3rem;
+    line-height: 1;
+    color: var(--rule);
+  }
+  .phase-title {
+    font-family: var(--serif);
+    font-size: 1.5rem;
+    font-weight: 400;
+  }
+  .phase-desc {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-left: auto;
+    max-width: 320px;
+    text-align: right;
+    font-style: italic;
+  }
+
+  /* STATEMENT CARDS */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-top: 3px solid var(--ink);
+    padding: 1.25rem 1.5rem 1.5rem;
+    position: relative;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    cursor: default;
+  }
+  .card:hover {
+    box-shadow: 4px 4px 0 var(--ink);
+    transform: translate(-2px, -2px);
+  }
+  .card-id {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-bottom: 0.75rem;
+    letter-spacing: 0.08em;
+  }
+  .card-trigger {
+    font-size: 0.88rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    line-height: 1.4;
+    color: var(--ink);
+  }
+
+  .statement-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+  }
+  .statement-key {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    min-width: 52px;
+    padding-top: 0.15rem;
+    letter-spacing: 0.05em;
+  }
+  .statement-val {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+
+  .card-divider {
+    border: none;
+    border-top: 1px dashed var(--rule);
+    margin: 0.75rem 0;
+  }
+
+  .card-objective {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-style: italic;
+    line-height: 1.5;
+  }
+  .card-objective strong {
+    font-style: normal;
+    font-weight: 500;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* JSON TOGGLE */
+  .json-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 1rem;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--accent2);
+    cursor: pointer;
+    background: none;
+    border: 1px solid #b8cfe8;
+    padding: 0.3rem 0.7rem;
+    border-radius: 2px;
+    transition: background 0.15s;
+  }
+  .json-toggle:hover { background: #edf3fb; }
+
+  .json-block {
+    display: none;
+    margin-top: 0.75rem;
+    background: #0f0f0f;
+    color: #a8d5a2;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    padding: 1rem;
+    border-radius: 2px;
+    overflow-x: auto;
+    line-height: 1.6;
+    white-space: pre;
+  }
+  .json-block.open { display: block; }
+
+  .k { color: #7ec8e3; }
+  .s { color: #f7c59f; }
+  .v { color: #a8d5a2; }
+  .p { color: #e0aaff; }
+
+  /* FULL FLOW */
+  .flow-section {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 2px solid var(--ink);
+  }
+  .flow-title {
+    font-family: var(--serif);
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .flow-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+  .flow-table th {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--ink);
+    background: var(--card);
+  }
+  .flow-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  .flow-table tr:hover td { background: #f0ede6; }
+  .flow-table td:first-child {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .flow-table td:nth-child(3) {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+  }
+
+  /* NOTES */
+  .notes-section {
+    margin-top: 3rem;
+    padding: 1.5rem 2rem;
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--accent);
+    background: var(--card);
+  }
+  .notes-title {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.75rem;
+  }
+  .notes-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .notes-list li {
+    font-size: 0.82rem;
+    padding-left: 1.2rem;
+    position: relative;
+    color: var(--muted);
+  }
+  .notes-list li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-family: var(--mono);
+  }
+
+  @media (max-width: 700px) {
+    header, main { padding-left: 1.25rem; padding-right: 1.25rem; }
+    .legend { padding-left: 1.25rem; }
+    h1 { font-size: 1.8rem; }
+    header::before { font-size: 7rem; }
+    .phase-desc { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-label">Statement Map v1.0</div>
+  <h1>Micro-Critique<br><em>xAPI Instrumentation Plan</em></h1>
+  <div class="header-meta">
+    <span>Course: Quantitative Research Methods</span>
+    <span>Activity Type: Weekly Writing Task</span>
+    <span>LRS Profile: Academic Analytics</span>
+  </div>
+</header>
+
+<div class="legend">
+  <span class="legend-label">Key</span>
+  <span class="pill pill-verb">verb</span>
+  <span class="pill pill-object">object</span>
+  <span class="pill pill-result">result</span>
+  <span class="pill pill-context">context</span>
+</div>
+
+<main>
+
+  <!-- PHASE 0: ARTICLE READING -->
+  <section class="phase">
+    <div class="phase-header">
+      <div class="phase-number">00</div>
+      <div class="phase-title">Article Engagement</div>
+      <div class="phase-desc">Tracks initial encounter with the source material before critique begins</div>
+    </div>
+    <div class="cards">
+
+      <div class="card">
+        <div class="card-id">MC-001 · article.opened</div>
+        <div class="card-trigger">Learner opens / accesses the assigned empirical article</div>
+        <div class="statement-row">
+          <span class="statement-key">actor</span>
+          <span class="statement-val"><span class="pill pill-verb">Agent</span> — learner (email mbox)</span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">verb</span>
+          <span class="statement-val"><span class="pill pill-verb">experienced</span> <span style="color:var(--muted);font-family:var(--mono);font-size:0.65rem">adlnet.gov/expapi/verbs/experienced</span></span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">object</span>
+          <span class="statement-val"><span class="pill pill-object">Activity</span> — empirical article (DOI as IRI)</span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">context</span>
+          <span class="statement-val"><span class="pill pill-context">module_id, week_number, course_id</span></span>
+        </div>
+        <hr class="card-divider">
+        <div class="card-objective"><strong>Objective map</strong> — Precondition; confirms article access before critique evaluation</div>
+        <button class="json-toggle" onclick="toggleJson(this)">{ } Show JSON example</button>
+        <div class="json-block"><span class="k">"actor"</span>: { <span class="k">"mbox"</span>: <span class="s">"mailto:learner@univ.edu"</span> },
+<span class="k">"verb"</span>: { <span class="k">"id"</span>: <span class="s">"https://adlnet.gov/expapi/verbs/experienced"</span>,
+           <span class="k">"display"</span>: { <span class="k">"en-US"</span>: <span class="s">"experienced"</span> } },
+<span class="k">"object"</span>: {
+  <span class="k">"id"</span>: <span class="s">"https://doi.org/10.xxxx/article-id"</span>,
+  <span class="k">"definition"</span>: { <span class="k">"type"</span>: <span class="s">"http://adlnet.gov/expapi/activities/media"</span>,
+    <span class="k">"name"</span>: { <span class="k">"en-US"</span>: <span class="s">"Week N Assigned Empirical Article"</span> } }
+},
+<span class="k">"context"</span>: { <span class="k">"extensions"</span>: {
+  <span class="s">"https://example.org/xapi/ext/week"</span>: <span class="v">3</span>,
+  <span class="s">"https://example.org/xapi/ext/module"</span>: <span class="s">"validity-threats"</span>
+}}</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- PHASE 1: IDENTIFICATION -->
+  <section class="phase">
+    <div class="phase-header">
+      <div class="phase-number">01</div>
+      <div class="phase-title">Step 1 — Identification</div>
+      <div class="phase-desc">Define, describe, and identify methodological issues in quantitative design</div>
+    </div>
+    <div class="cards">
+
+      <div class="card">
+        <div class="card-id">MC-010 · step1.started</div>
+        <div class="card-trigger">Learner begins writing the Identification response</div>
+        <div class="statement-row">
+          <span class="statement-key">verb</span>
+          <span class="statement-val"><span class="pill pill-verb">attempted</span> <span style="color:var(--muted);font-family:var(--mono);font-size:0.65rem">adlnet.gov/.../attempted</span></span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">object</span>
+          <span class="statement-val"><span class="pill pill-object">Activity</span> — microcritique.step1.identification</span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">result</span>
+          <span class="statement-val"><span class="pill pill-result">timestamp</span> of first keystroke</span>
+        </div>
+        <hr class="card-divider">
+        <div class="card-objective"><strong>Objective map</strong> — Identifies, describes, and articulates a methodological issue or validity threat</div>
+      </div>
+
+      <div class="card">
+        <div class="card-id">MC-011 · step1.completed</div>
+        <div class="card-trigger">Learner submits / saves the Identification step</div>
+        <div class="statement-row">
+          <span class="statement-key">verb</span>
+          <span class="statement-val"><span class="pill pill-verb">responded</span> <span style="color:var(--muted);font-family:var(--mono);font-size:0.65rem">adlnet.gov/.../responded</span></span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">object</span>
+          <span class="statement-val"><span class="pill pill-object">Activity</span> — microcritique.step1.identification</span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">result</span>
+          <span class="statement-val"><span class="pill pill-result">response</span> — raw text (1–2 sentences); <span class="pill pill-result">duration</span></span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">context</span>
+          <span class="statement-val"><span class="pill pill-context">issue_type</span>: confounder | validity | bias | ethics</span>
+        </div>
+        <hr class="card-divider">
+        <div class="card-objective"><strong>Objective map</strong> — Captures classification of issue type for analytics aggregation across cohort</div>
+        <button class="json-toggle" onclick="toggleJson(this)">{ } Show JSON example</button>
+        <div class="json-block"><span class="k">"verb"</span>: { <span class="k">"id"</span>: <span class="s">"https://adlnet.gov/expapi/verbs/responded"</span> },
+<span class="k">"object"</span>: {
+  <span class="k">"id"</span>: <span class="s">"https://example.org/activities/microcritique/step1"</span>,
+  <span class="k">"definition"</span>: { <span class="k">"type"</span>: <span class="s">"http://adlnet.gov/expapi/activities/question"</span>,
+    <span class="k">"name"</span>: { <span class="k">"en-US"</span>: <span class="s">"Step 1: Identification"</span> } }
+},
+<span class="k">"result"</span>: {
+  <span class="k">"response"</span>: <span class="s">"[learner's 1-2 sentence text]"</span>,
+  <span class="k">"duration"</span>: <span class="s">"PT4M32S"</span>,
+  <span class="k">"extensions"</span>: {
+    <span class="s">"https://example.org/xapi/ext/issue-type"</span>: <span class="s">"confounder"</span>,
+    <span class="s">"https://example.org/xapi/ext/word-count"</span>: <span class="v">38</span>
+  }
+}</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- PHASE 2: SIGNIFICANCE -->
+  <section class="phase">
+    <div class="phase-header">
+      <div class="phase-number">02</div>
+      <div class="phase-title">Step 2 — Significance</div>
+      <div class="phase-desc">Evaluate relevance of identified issue; demonstrate logical reasoning</div>
+    </div>
+    <div class="cards">
+
+      <div class="card">
+        <div class="card-id">MC-020 · step2.started</div>
+        <div class="card-trigger">Learner begins writing the Significance response</div>
+        <div class="statement-row">
+          <span class="statement-key">verb</span>
+          <span class="statement-val"><span class="pill pill-verb">attempted</span></span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">object</span>
+          <span class="statement-val"><span class="pill pill-object">Activity</span> — microcritique.step2.significance</span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">result</span>
+          <span class="statement-val"><span class="pill pill-result">timestamp</span></span>
+        </div>
+        <hr class="card-divider">
+        <div class="card-objective"><strong>Objective map</strong> — Explains relevance of identified issue to interpretation of findings</div>
+      </div>
+
+      <div class="card">
+        <div class="card-id">MC-021 · step2.completed</div>
+        <div class="card-trigger">Learner submits / saves the Significance step</div>
+        <div class="statement-row">
+          <span class="statement-key">verb</span>
+          <span class="statement-val"><span class="pill pill-verb">responded</span></span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">object</span>
+          <span class="statement-val"><span class="pill pill-object">Activity</span> — microcritique.step2.significance</span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">result</span>
+          <span class="statement-val"><span class="pill pill-result">response</span> — raw text (2–4 sentences); <span class="pill pill-result">duration</span>; <span class="pill pill-result">word count</span></span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">context</span>
+          <span class="statement-val"><span class="pill pill-context">reasoning_quality</span>: rubric dimension (if scored)</span>
+        </div>
+        <hr class="card-divider">
+        <div class="card-objective"><strong>Objective map</strong> — Evaluates argument coherence; reasoning soundness over technical precision</div>
+        <button class="json-toggle" onclick="toggleJson(this)">{ } Show JSON example</button>
+        <div class="json-block"><span class="k">"verb"</span>: { <span class="k">"id"</span>: <span class="s">"https://adlnet.gov/expapi/verbs/responded"</span> },
+<span class="k">"object"</span>: {
+  <span class="k">"id"</span>: <span class="s">"https://example.org/activities/microcritique/step2"</span>,
+  <span class="k">"definition"</span>: { <span class="k">"name"</span>: { <span class="k">"en-US"</span>: <span class="s">"Step 2: Significance"</span> } }
+},
+<span class="k">"result"</span>: {
+  <span class="k">"response"</span>: <span class="s">"[learner's 2-4 sentence text]"</span>,
+  <span class="k">"duration"</span>: <span class="s">"PT6M10S"</span>,
+  <span class="k">"extensions"</span>: {
+    <span class="s">"https://example.org/xapi/ext/word-count"</span>: <span class="v">74</span>,
+    <span class="s">"https://example.org/xapi/ext/reasoning-score"</span>: <span class="v">3</span>
+  }
+}</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- PHASE 3: CRITICAL INQUIRY -->
+  <section class="phase">
+    <div class="phase-header">
+      <div class="phase-number">03</div>
+      <div class="phase-title">Step 3 — Critical Inquiry</div>
+      <div class="phase-desc">Pose a scholarly question reflecting gaps, ambiguities, or missing information</div>
+    </div>
+    <div class="cards">
+
+      <div class="card">
+        <div class="card-id">MC-030 · step3.started</div>
+        <div class="card-trigger">Learner begins writing their scholarly question</div>
+        <div class="statement-row">
+          <span class="statement-key">verb</span>
+          <span class="statement-val"><span class="pill pill-verb">attempted</span></span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">object</span>
+          <span class="statement-val"><span class="pill pill-object">Activity</span> — microcritique.step3.inquiry</span>
+        </div>
+        <hr class="card-divider">
+        <div class="card-objective"><strong>Objective map</strong> — Formulates scholarly question addressing gaps or methodological ambiguities</div>
+      </div>
+
+      <div class="card">
+        <div class="card-id">MC-031 · step3.completed</div>
+        <div class="card-trigger">Learner submits their critical inquiry question</div>
+        <div class="statement-row">
+          <span class="statement-key">verb</span>
+          <span class="statement-val"><span class="pill pill-verb">responded</span></span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">object</span>
+          <span class="statement-val"><span class="pill pill-object">Activity</span> — microcritique.step3.inquiry</span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">result</span>
+          <span class="statement-val"><span class="pill pill-result">response</span> — question text; <span class="pill pill-result">duration</span></span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">context</span>
+          <span class="statement-val"><span class="pill pill-context">question_focus</span>: gap | ambiguity | missing-info | causal</span>
+        </div>
+        <hr class="card-divider">
+        <div class="card-objective"><strong>Objective map</strong> — Reflects scholarly habits of mind; attends to literature gaps and absent information</div>
+        <button class="json-toggle" onclick="toggleJson(this)">{ } Show JSON example</button>
+        <div class="json-block"><span class="k">"verb"</span>: { <span class="k">"id"</span>: <span class="s">"https://adlnet.gov/expapi/verbs/responded"</span> },
+<span class="k">"object"</span>: {
+  <span class="k">"id"</span>: <span class="s">"https://example.org/activities/microcritique/step3"</span>,
+  <span class="k">"definition"</span>: { <span class="k">"name"</span>: { <span class="k">"en-US"</span>: <span class="s">"Step 3: Critical Inquiry Question"</span> } }
+},
+<span class="k">"result"</span>: {
+  <span class="k">"response"</span>: <span class="s">"[learner's scholarly question]"</span>,
+  <span class="k">"extensions"</span>: {
+    <span class="s">"https://example.org/xapi/ext/question-focus"</span>: <span class="s">"gap"</span>,
+    <span class="s">"https://example.org/xapi/ext/interrogative"</span>: <span class="s">"how"</span>
+  }
+}</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- PHASE 4: SUBMISSION & ASSESSMENT -->
+  <section class="phase">
+    <div class="phase-header">
+      <div class="phase-number">04</div>
+      <div class="phase-title">Submission &amp; Assessment</div>
+      <div class="phase-desc">Final submission, instructor scoring, and longitudinal progress tracking</div>
+    </div>
+    <div class="cards">
+
+      <div class="card">
+        <div class="card-id">MC-040 · assignment.submitted</div>
+        <div class="card-trigger">Learner submits the complete Micro-Critique</div>
+        <div class="statement-row">
+          <span class="statement-key">verb</span>
+          <span class="statement-val"><span class="pill pill-verb">completed</span> <span style="color:var(--muted);font-family:var(--mono);font-size:0.65rem">adlnet.gov/.../completed</span></span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">object</span>
+          <span class="statement-val"><span class="pill pill-object">Activity</span> — microcritique.assignment (parent)</span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">result</span>
+          <span class="statement-val"><span class="pill pill-result">completion</span>: true; <span class="pill pill-result">total duration</span></span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">context</span>
+          <span class="statement-val"><span class="pill pill-context">parent</span>: course activity IRI; <span class="pill pill-context">grouping</span>: module IRI</span>
+        </div>
+        <hr class="card-divider">
+        <div class="card-objective"><strong>Objective map</strong> — All three steps present; submission integrity confirmed</div>
+      </div>
+
+      <div class="card">
+        <div class="card-id">MC-041 · assignment.scored</div>
+        <div class="card-trigger">Instructor posts feedback / score on the critique</div>
+        <div class="statement-row">
+          <span class="statement-key">actor</span>
+          <span class="statement-val"><span class="pill pill-verb">Agent</span> — instructor (email mbox)</span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">verb</span>
+          <span class="statement-val"><span class="pill pill-verb">scored</span> <span style="color:var(--muted);font-family:var(--mono);font-size:0.65rem">adlnet.gov/.../scored</span></span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">object</span>
+          <span class="statement-val"><span class="pill pill-object">StatementRef</span> — ref to MC-040</span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">result</span>
+          <span class="statement-val"><span class="pill pill-result">score.raw</span>; <span class="pill pill-result">score.max</span>; <span class="pill pill-result">rubric dimension scores</span></span>
+        </div>
+        <hr class="card-divider">
+        <div class="card-objective"><strong>Objective map</strong> — Captures per-dimension rubric scoring: identification, reasoning, inquiry quality</div>
+        <button class="json-toggle" onclick="toggleJson(this)">{ } Show JSON example</button>
+        <div class="json-block"><span class="k">"actor"</span>: { <span class="k">"mbox"</span>: <span class="s">"mailto:instructor@univ.edu"</span> },
+<span class="k">"verb"</span>: { <span class="k">"id"</span>: <span class="s">"https://adlnet.gov/expapi/verbs/scored"</span> },
+<span class="k">"object"</span>: { <span class="k">"objectType"</span>: <span class="s">"StatementRef"</span>,
+  <span class="k">"id"</span>: <span class="s">"[UUID of MC-040 statement]"</span> },
+<span class="k">"result"</span>: {
+  <span class="k">"score"</span>: { <span class="k">"raw"</span>: <span class="v">8</span>, <span class="k">"max"</span>: <span class="v">10</span>, <span class="k">"min"</span>: <span class="v">0</span> },
+  <span class="k">"extensions"</span>: {
+    <span class="s">"https://example.org/xapi/ext/rubric-identification"</span>: <span class="v">3</span>,
+    <span class="s">"https://example.org/xapi/ext/rubric-reasoning"</span>: <span class="v">3</span>,
+    <span class="s">"https://example.org/xapi/ext/rubric-inquiry"</span>: <span class="v">2</span>
+  }
+}</div>
+      </div>
+
+      <div class="card">
+        <div class="card-id">MC-042 · feedback.viewed</div>
+        <div class="card-trigger">Learner opens and reads instructor feedback</div>
+        <div class="statement-row">
+          <span class="statement-key">verb</span>
+          <span class="statement-val"><span class="pill pill-verb">experienced</span></span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">object</span>
+          <span class="statement-val"><span class="pill pill-object">Activity</span> — microcritique.feedback</span>
+        </div>
+        <div class="statement-row">
+          <span class="statement-key">result</span>
+          <span class="statement-val"><span class="pill pill-result">duration</span> spent viewing feedback</span>
+        </div>
+        <hr class="card-divider">
+        <div class="card-objective"><strong>Objective map</strong> — Closes the feedback loop; enables correlation between feedback engagement and growth</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FULL FLOW TABLE -->
+  <section class="flow-section">
+    <div class="flow-title">Complete Statement Sequence at a Glance</div>
+    <table class="flow-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Trigger Event</th>
+          <th>Verb</th>
+          <th>Object</th>
+          <th>Key Result/Context Data</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>MC-001</td>
+          <td>Opens assigned article</td>
+          <td><span class="pill pill-verb">experienced</span></td>
+          <td>Empirical article (DOI IRI)</td>
+          <td>week, module_id</td>
+        </tr>
+        <tr>
+          <td>MC-010</td>
+          <td>Starts Step 1 writing</td>
+          <td><span class="pill pill-verb">attempted</span></td>
+          <td>step1.identification</td>
+          <td>timestamp</td>
+        </tr>
+        <tr>
+          <td>MC-011</td>
+          <td>Saves Step 1 response</td>
+          <td><span class="pill pill-verb">responded</span></td>
+          <td>step1.identification</td>
+          <td>response text, issue_type, word_count, duration</td>
+        </tr>
+        <tr>
+          <td>MC-020</td>
+          <td>Starts Step 2 writing</td>
+          <td><span class="pill pill-verb">attempted</span></td>
+          <td>step2.significance</td>
+          <td>timestamp</td>
+        </tr>
+        <tr>
+          <td>MC-021</td>
+          <td>Saves Step 2 response</td>
+          <td><span class="pill pill-verb">responded</span></td>
+          <td>step2.significance</td>
+          <td>response text, reasoning_score, word_count, duration</td>
+        </tr>
+        <tr>
+          <td>MC-030</td>
+          <td>Starts Step 3 writing</td>
+          <td><span class="pill pill-verb">attempted</span></td>
+          <td>step3.inquiry</td>
+          <td>timestamp</td>
+        </tr>
+        <tr>
+          <td>MC-031</td>
+          <td>Saves Step 3 question</td>
+          <td><span class="pill pill-verb">responded</span></td>
+          <td>step3.inquiry</td>
+          <td>question text, question_focus, interrogative type</td>
+        </tr>
+        <tr>
+          <td>MC-040</td>
+          <td>Submits full critique</td>
+          <td><span class="pill pill-verb">completed</span></td>
+          <td>microcritique.assignment</td>
+          <td>completion: true, total_duration, parent context</td>
+        </tr>
+        <tr>
+          <td>MC-041</td>
+          <td>Instructor scores critique</td>
+          <td><span class="pill pill-verb">scored</span></td>
+          <td>StatementRef → MC-040</td>
+          <td>score.raw/max, rubric dimensions ×3</td>
+        </tr>
+        <tr>
+          <td>MC-042</td>
+          <td>Learner views feedback</td>
+          <td><span class="pill pill-verb">experienced</span></td>
+          <td>microcritique.feedback</td>
+          <td>duration on feedback page</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- DESIGN NOTES -->
+  <div class="notes-section">
+    <div class="notes-title">Design Notes &amp; Implementation Guidance</div>
+    <ul class="notes-list">
+      <li>All activity IRIs should follow a consistent namespace: <code style="font-family:var(--mono);font-size:0.78rem">https://[institution].org/activities/[course]/microcritique/[step]</code></li>
+      <li>The <code style="font-family:var(--mono);font-size:0.78rem">issue_type</code> extension vocabulary should be defined in a shared xAPI Profile document and reused across all weekly modules for cohort-level analytics</li>
+      <li>Response text in the <code style="font-family:var(--mono);font-size:0.78rem">result.response</code> field enables AI-assisted rubric scoring or NLP analysis downstream — ensure your LRS data retention policy covers PII in free-text fields</li>
+      <li>Use <code style="font-family:var(--mono);font-size:0.78rem">context.contextActivities.parent</code> to link each step to the parent assignment, and <code style="font-family:var(--mono);font-size:0.78rem">grouping</code> to link to the module — this enables roll-up reporting across weeks</li>
+      <li>MC-041 uses a <code style="font-family:var(--mono);font-size:0.78rem">StatementRef</code> as the object so the score is permanently linked to the learner's original submission statement in the LRS</li>
+      <li>Consider adding a <code style="font-family:var(--mono);font-size:0.78rem">revised</code> verb statement if the platform supports iterative drafts — tracking revision behavior can be a valuable leading indicator of skill growth</li>
+    </ul>
+  </div>
+
+</main>
+
+<script>
+  function toggleJson(btn) {
+    const block = btn.nextElementSibling;
+    const isOpen = block.classList.toggle('open');
+    btn.textContent = isOpen ? '{ } Hide JSON' : '{ } Show JSON example';
+  }
+</script>
+</body>
+</html>
