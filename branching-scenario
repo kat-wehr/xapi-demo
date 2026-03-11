@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pediatric Triage — Clinical Decision Scenario</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:    #0c1f3f;
+    --navy2:   #112348;
+    --teal:    #0e7c8b;
+    --teal2:   #12a3b8;
+    --gold:    #e6a817;
+    --gold2:   #f5c84a;
+    --cream:   #f5f0e8;
+    --red:     #c0392b;
+    --green:   #1e8a5e;
+    --muted:   #7a96b0;
+    --white:   #ffffff;
+    --card:    #162a50;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--navy);
+    color: var(--white);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Ambient background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 80% 10%, rgba(14,124,139,0.18) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 50% at 10% 80%, rgba(230,168,23,0.08) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .shell {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 36px;
+  }
+  .header-badge {
+    background: var(--teal);
+    color: var(--white);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 2px;
+  }
+  .header-sub {
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: .04em;
+  }
+
+  /* ── Progress bar ── */
+  .progress-wrap {
+    margin-bottom: 32px;
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .progress-track {
+    height: 3px;
+    background: rgba(255,255,255,.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--teal), var(--gold));
+    border-radius: 2px;
+    transition: width .5s ease;
+  }
+
+  /* ── Scene card ── */
+  .scene {
+    display: none;
+    animation: fadeUp .4s ease both;
+  }
+  .scene.active { display: block; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Vital signs strip */
+  .vitals {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .vital {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+  .vital-label { color: var(--muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 2px; }
+  .vital-val   { font-weight: 600; font-size: 15px; }
+  .vital-val.warn  { color: var(--gold2); }
+  .vital-val.crit  { color: #e05252; }
+  .vital-val.ok    { color: #5dd6a0; }
+
+  /* Main narrative card */
+  .card {
+    background: var(--card);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 12px;
+    padding: 32px 36px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--teal);
+    border-radius: 12px 0 0 12px;
+  }
+  .card.warn-card::before { background: var(--gold); }
+  .card.crit-card::before { background: var(--red); }
+  .card.good-card::before { background: var(--green); }
+
+  .scene-tag {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--teal2);
+    margin-bottom: 10px;
+  }
+  .card.warn-card .scene-tag { color: var(--gold2); }
+  .card.crit-card .scene-tag { color: #e05252; }
+  .card.good-card .scene-tag { color: #5dd6a0; }
+
+  .scene-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    line-height: 1.25;
+    margin-bottom: 16px;
+    color: var(--white);
+  }
+
+  .scene-body {
+    font-size: 15px;
+    line-height: 1.75;
+    color: rgba(255,255,255,.82);
+  }
+  .scene-body strong { color: var(--white); }
+  .scene-body em { color: var(--gold2); font-style: normal; font-weight: 500; }
+
+  /* Image / chart area */
+  .chart-wrap {
+    background: rgba(0,0,0,.25);
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-top: 18px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .chart-label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 10px; }
+  .hr-line {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-bottom: 6px;
+  }
+  .hr-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .hr-bar {
+    height: 28px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--white);
+    flex: 1;
+  }
+
+  /* Choices */
+  .choices { display: flex; flex-direction: column; gap: 12px; }
+
+  .choice-btn {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px;
+    padding: 18px 22px;
+    cursor: pointer;
+    text-align: left;
+    transition: all .2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .choice-btn::after {
+    content: '→';
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 18px;
+    transition: all .2s;
+  }
+  .choice-btn:hover {
+    background: rgba(14,124,139,.18);
+    border-color: var(--teal2);
+    transform: translateX(4px);
+  }
+  .choice-btn:hover::after { right: 14px; color: var(--teal2); }
+
+  .choice-letter {
+    display: inline-block;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.2);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    line-height: 24px;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  .choice-text {
+    font-size: 15px;
+    color: rgba(255,255,255,.88);
+    line-height: 1.5;
+    display: inline;
+  }
+  .choice-sub {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+    margin-left: 38px;
+  }
+
+  /* Feedback reveal */
+  .feedback {
+    display: none;
+    margin-top: 20px;
+    border-radius: 10px;
+    padding: 18px 22px;
+    font-size: 14px;
+    line-height: 1.65;
+    animation: fadeUp .3s ease both;
+  }
+  .feedback.show { display: block; }
+  .feedback.correct {
+    background: rgba(30,138,94,.15);
+    border: 1px solid rgba(30,138,94,.4);
+    color: #8de8c0;
+  }
+  .feedback.partial {
+    background: rgba(230,168,23,.12);
+    border: 1px solid rgba(230,168,23,.35);
+    color: var(--gold2);
+  }
+  .feedback.incorrect {
+    background: rgba(192,57,43,.13);
+    border: 1px solid rgba(192,57,43,.35);
+    color: #e08080;
+  }
+  .feedback-icon { font-size: 16px; margin-right: 8px; }
+  .feedback strong { color: var(--white); }
+
+  /* Continue btn */
+  .continue-btn {
+    display: none;
+    margin-top: 18px;
+    background: var(--teal);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    padding: 13px 28px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: .03em;
+    transition: background .2s, transform .15s;
+  }
+  .continue-btn:hover { background: var(--teal2); transform: translateY(-1px); }
+  .continue-btn.show { display: inline-block; }
+
+  /* Outcome card */
+  .outcome-card {
+    border-radius: 12px;
+    padding: 36px;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .outcome-card.good {
+    background: linear-gradient(135deg, rgba(30,138,94,.2), rgba(14,124,139,.2));
+    border: 1px solid rgba(30,138,94,.35);
+  }
+  .outcome-card.partial {
+    background: linear-gradient(135deg, rgba(230,168,23,.15), rgba(14,124,139,.12));
+    border: 1px solid rgba(230,168,23,.3);
+  }
+  .outcome-card.poor {
+    background: linear-gradient(135deg, rgba(192,57,43,.18), rgba(12,31,63,.5));
+    border: 1px solid rgba(192,57,43,.3);
+  }
+  .outcome-icon { font-size: 42px; margin-bottom: 14px; }
+  .outcome-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    margin-bottom: 12px;
+  }
+  .outcome-body {
+    font-size: 15px;
+    color: rgba(255,255,255,.78);
+    line-height: 1.7;
+    max-width: 560px;
+    margin: 0 auto 24px;
+  }
+
+  /* Score display */
+  .score-row {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+  .score-item {
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 8px;
+    padding: 14px 22px;
+    text-align: center;
+    min-width: 100px;
+  }
+  .score-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    color: var(--gold2);
+  }
+  .score-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-top: 4px; }
+
+  /* xAPI data preview */
+  .xapi-preview {
+    margin-top: 32px;
+    border-radius: 10px;
+    background: rgba(0,0,0,.35);
+    border: 1px solid rgba(14,124,139,.3);
+    overflow: hidden;
+  }
+  .xapi-header {
+    background: rgba(14,124,139,.25);
+    padding: 10px 18px;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--teal2);
+    font-weight: 600;
+  }
+  .xapi-row {
+    display: grid;
+    grid-template-columns: 90px 110px 1fr 80px;
+    gap: 0;
+    border-bottom: 1px solid rgba(255,255,255,.05);
+    font-size: 12px;
+  }
+  .xapi-row.head {
+    background: rgba(255,255,255,.04);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+  }
+  .xapi-cell {
+    padding: 10px 14px;
+    border-right: 1px solid rgba(255,255,255,.04);
+  }
+  .xapi-cell:last-child { border-right: none; }
+  .tag-actor  { color: var(--teal2); }
+  .tag-verb   { color: var(--gold2); }
+  .tag-object { color: rgba(255,255,255,.8); }
+  .tag-result { color: #5dd6a0; }
+  .tag-result.warn { color: var(--gold2); }
+  .tag-result.bad  { color: #e05252; }
+
+  .restart-btn {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,.2);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 11px 24px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    margin-top: 10px;
+    transition: all .2s;
+  }
+  .restart-btn:hover { border-color: var(--white); color: var(--white); }
+
+  /* xAPI callout on outcome */
+  .xapi-note {
+    margin-top: 28px;
+    background: rgba(14,124,139,.1);
+    border: 1px solid rgba(14,124,139,.25);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 13px;
+    color: rgba(255,255,255,.7);
+    text-align: left;
+  }
+  .xapi-note strong { color: var(--teal2); }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="header">
+    <span class="header-badge">Nursing 302</span>
+    <span class="header-sub">Pediatric Triage — Clinical Decision Scenario</span>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span id="progress-text">Scene 1 of 4</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progress-bar" style="width:0%"></div></div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       SCENE 1 — Initial Presentation
+  ════════════════════════════════════════ -->
+  <div class="scene active" id="scene-1">
+    <div class="vitals">
+      <div class="vital"><div class="vital-label">HR</div><div class="vital-val warn">138 bpm</div></div>
+      <div class="vital"><div class="vital-label">RR</div><div class="vital-val warn">32 /min</div></div>
+      <div class="vital"><div class="vital-label">SpO₂</div><div class="vital-val warn">91%</div></div>
+      <div class="vital"><div class="vital-label">Temp</div><div class="vital-val ok">38.4°C</div></div>
+      <div class="vital"><div class="vital-label">BP</div><div class="vital-val ok">98/62</div></div>
+      <div class="vital"><div class="vital-label">Age / Wt</div><div class="vital-val">4 yr / 16 kg</div></div>
+    </div>
+
+    <div class="card">
+      <div class="scene-tag">Initial Presentation · ED Bay 3</div>
+      <h2 class="scene-title">A 4-year-old arrives in respiratory distress</h2>
+      <p class="scene-body">
+        A parent rushes in carrying <strong>Maya</strong>, a 4-year-old girl. She's visibly working to breathe — you can see <em>intercostal retractions</em> and she's sitting forward with her neck extended. The parent says she's had a runny nose for two days but "suddenly got worse an hour ago." She hasn't eaten since morning.
+        <br><br>
+        Maya is <strong>alert but anxious</strong>, making eye contact. She has not been cyanotic at home. No known allergies. No prior hospitalizations.
+      </p>
+      <div class="chart-wrap">
+        <div class="chart-label">Work of breathing indicators</div>
+        <div class="hr-line"><div class="hr-dot" style="background:#e05252"></div><div class="hr-bar" style="background:rgba(224,82,82,.25); width:85%">Intercostal retractions — present</div></div>
+        <div class="hr-line"><div class="hr-dot" style="background:#f5c84a"></div><div class="hr-bar" style="background:rgba(245,200,74,.2); width:70%">Nasal flaring — mild</div></div>
+        <div class="hr-line"><div class="hr-dot" style="background:#f5c84a"></div><div class="hr-bar" style="background:rgba(245,200,74,.2); width:55%">Tracheal tug — borderline</div></div>
+        <div class="hr-line"><div class="hr-dot" style="background:#5dd6a0"></div><div class="hr-bar" style="background:rgba(93,214,160,.15); width:30%">Accessory muscle use — minimal</div></div>
+      </div>
+    </div>
+
+    <div class="choices" id="choices-1">
+      <button class="choice-btn" onclick="choose(1,'A')">
+        <span class="choice-letter">A</span>
+        <span class="choice-text">Administer supplemental oxygen and obtain a full history before any other intervention</span>
+        <span class="choice-sub">SpO₂ 91% — get more information first</span>
+      </button>
+      <button class="choice-btn" onclick="choose(1,'B')">
+        <span class="choice-letter">B</span>
+        <span class="choice-text">Apply supplemental oxygen immediately, then perform a rapid focused assessment</span>
+        <span class="choice-sub">Address the hypoxia, then gather data</span>
+      </button>
+      <button class="choice-btn" onclick="choose(1,'C')">
+        <span class="choice-letter">C</span>
+        <span class="choice-text">Page the attending physician and wait for orders before intervening</span>
+        <span class="choice-sub">Escalate immediately — this looks serious</span>
+      </button>
+    </div>
+
+    <div class="feedback correct" id="fb-1-B">
+      <span class="feedback-icon">✓</span><strong>Good decision.</strong> With SpO₂ at 91% and visible retractions, oxygen comes first — then assessment. Waiting for history before treating hypoxia risks further desaturation. Paging the physician is appropriate soon, but shouldn't delay your first intervention.
+    </div>
+    <div class="feedback partial" id="fb-1-A">
+      <span class="feedback-icon">△</span><strong>Reasonable instinct, but timing matters.</strong> History is important, but SpO₂ of 91% with retractions warrants oxygen before a full history. In pediatric distress, airway and oxygenation take priority in the assessment sequence.
+    </div>
+    <div class="feedback incorrect" id="fb-1-C">
+      <span class="feedback-icon">✕</span><strong>Too passive for this acuity.</strong> Nurses initiate oxygen therapy independently — you don't need physician orders for supplemental O₂. Waiting in this moment risks rapid deterioration in a pediatric airway.
+    </div>
+    <button class="continue-btn" id="cont-1" onclick="goTo(2)">Continue to next decision →</button>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       SCENE 2 — Focused Assessment
+  ════════════════════════════════════════ -->
+  <div class="scene" id="scene-2">
+    <div class="vitals">
+      <div class="vital"><div class="vital-label">HR</div><div class="vital-val warn">132 bpm</div></div>
+      <div class="vital"><div class="vital-label">RR</div><div class="vital-val warn">30 /min</div></div>
+      <div class="vital"><div class="vital-label">SpO₂</div><div class="vital-val ok">95%</div></div>
+      <div class="vital"><div class="vital-label">O₂</div><div class="vital-val ok">2L NC</div></div>
+    </div>
+
+    <div class="card warn-card">
+      <div class="scene-tag">Assessment · 4 Minutes In</div>
+      <h2 class="scene-title">Oxygen is on. Now — what do you listen for?</h2>
+      <p class="scene-body">
+        SpO₂ has improved to 95% on 2L nasal cannula. Maya is still visibly working to breathe but appears slightly calmer. You're ready to auscultate.
+        <br><br>
+        On lung auscultation you hear <em>diffuse expiratory wheezing bilaterally</em>, more prominent in the right lower lobe. The inspiratory phase sounds are clear. She has a mild but <strong>audible wheeze</strong> even without your stethoscope.
+        <br><br>
+        The parent mentions: <em>"She had something like this once before — they gave her a breathing treatment."</em>
+      </p>
+    </div>
+
+    <div class="choices" id="choices-2">
+      <button class="choice-btn" onclick="choose(2,'A')">
+        <span class="choice-letter">A</span>
+        <span class="choice-text">Prepare albuterol nebulizer treatment and notify the physician of your findings</span>
+        <span class="choice-sub">History of prior treatment + bilateral wheezing = likely bronchospasm</span>
+      </button>
+      <button class="choice-btn" onclick="choose(2,'B')">
+        <span class="choice-letter">B</span>
+        <span class="choice-text">Order a chest X-ray before initiating any bronchodilator therapy</span>
+        <span class="choice-sub">Rule out foreign body or pneumonia before treating</span>
+      </button>
+      <button class="choice-btn" onclick="choose(2,'C')">
+        <span class="choice-letter">C</span>
+        <span class="choice-text">Increase oxygen to 4L and continue monitoring — SpO₂ is improving</span>
+        <span class="choice-sub">She's responding to oxygen; wait and observe</span>
+      </button>
+    </div>
+
+    <div class="feedback correct" id="fb-2-A">
+      <span class="feedback-icon">✓</span><strong>Strong clinical reasoning.</strong> Bilateral expiratory wheezing with a history of prior bronchodilator response strongly suggests reactive airway disease. Albuterol is first-line. Notifying the physician while preparing the treatment is appropriate teamwork.
+    </div>
+    <div class="feedback partial" id="fb-2-B">
+      <span class="feedback-icon">△</span><strong>Diagnostically cautious, but delays treatment.</strong> While imaging can be useful, it shouldn't delay bronchodilator therapy when the presentation is classic for reactive airway disease. The asymmetric right lower lobe finding warrants mention to the physician, but treatment comes first.
+    </div>
+    <div class="feedback incorrect" id="fb-2-C">
+      <span class="feedback-icon">✕</span><strong>Oxygen alone is insufficient here.</strong> The underlying bronchospasm is not being treated. SpO₂ improving on supplemental O₂ doesn't mean the pathology is resolving — it means you're compensating for it. She needs bronchodilator therapy.
+    </div>
+    <button class="continue-btn" id="cont-2" onclick="goTo(3)">Continue to next decision →</button>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       SCENE 3 — Deterioration
+  ════════════════════════════════════════ -->
+  <div class="scene" id="scene-3">
+    <div class="vitals">
+      <div class="vital"><div class="vital-label">HR</div><div class="vital-val crit">158 bpm</div></div>
+      <div class="vital"><div class="vital-label">RR</div><div class="vital-val crit">38 /min</div></div>
+      <div class="vital"><div class="vital-label">SpO₂</div><div class="vital-val crit">87%</div></div>
+      <div class="vital"><div class="vital-label">GCS</div><div class="vital-val warn">13</div></div>
+    </div>
+
+    <div class="card crit-card">
+      <div class="scene-tag">⚠ Deterioration · 12 Minutes In</div>
+      <h2 class="scene-title">Maya is getting worse — fast</h2>
+      <p class="scene-body">
+        Despite your interventions so far, Maya has deteriorated. SpO₂ has dropped to <em>87%</em>. She is now showing <strong>subcostal retractions</strong> in addition to intercostal. Her GCS has dropped to 13 — she's becoming less responsive and her color is <em>pale with perioral mottling</em>.
+        <br><br>
+        The albuterol nebulizer has been running for 3 minutes. The physician has just arrived at bedside and looks to you for your recommendation.
+      </p>
+    </div>
+
+    <div class="choices" id="choices-3">
+      <button class="choice-btn" onclick="choose(3,'A')">
+        <span class="choice-letter">A</span>
+        <span class="choice-text">Recommend escalating to high-flow oxygen via non-rebreather mask and consider IV magnesium sulfate</span>
+        <span class="choice-sub">Escalate O₂ delivery + add adjunct bronchodilator for severe asthma</span>
+      </button>
+      <button class="choice-btn" onclick="choose(3,'B')">
+        <span class="choice-letter">B</span>
+        <span class="choice-text">Continue current nebulizer therapy and increase monitoring frequency to every 5 minutes</span>
+        <span class="choice-sub">Give the albuterol more time to work</span>
+      </button>
+      <button class="choice-btn" onclick="choose(3,'C')">
+        <span class="choice-letter">C</span>
+        <span class="choice-text">Recommend immediate preparation for potential intubation and alert the PICU team</span>
+        <span class="choice-sub">GCS declining, SpO₂ 87% — this may require advanced airway management</span>
+      </button>
+    </div>
+
+    <div class="feedback correct" id="fb-3-A">
+      <span class="feedback-icon">✓</span><strong>Appropriate escalation.</strong> Non-rebreather mask dramatically increases FiO₂. IV magnesium sulfate is evidence-based for severe pediatric asthma exacerbation when initial bronchodilators are insufficient. This is the right next step before considering intubation.
+    </div>
+    <div class="feedback partial" id="fb-3-C">
+      <span class="feedback-icon">△</span><strong>Not wrong, but premature.</strong> PICU notification is appropriate soon, but intubation in a severe asthmatic child carries significant risk and should be a last resort. There are escalation steps — non-rebreather O₂, IV magnesium, heliox — that should come first.
+    </div>
+    <div class="feedback incorrect" id="fb-3-B">
+      <span class="feedback-icon">✕</span><strong>This child cannot wait.</strong> A declining GCS with SpO₂ at 87% and worsening retractions is a deteriorating airway. Continuing current therapy without escalation risks respiratory arrest. Immediate intervention is required.
+    </div>
+    <button class="continue-btn" id="cont-3" onclick="goTo(4)">Final decision →</button>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       SCENE 4 — Family Communication
+  ════════════════════════════════════════ -->
+  <div class="scene" id="scene-4">
+    <div class="vitals">
+      <div class="vital"><div class="vital-label">HR</div><div class="vital-val warn">124 bpm</div></div>
+      <div class="vital"><div class="vital-label">SpO₂</div><div class="vital-val ok">94%</div></div>
+      <div class="vital"><div class="vital-label">GCS</div><div class="vital-val ok">15</div></div>
+      <div class="vital"><div class="vital-label">Status</div><div class="vital-val ok">Stabilizing</div></div>
+    </div>
+
+    <div class="card">
+      <div class="scene-tag">Communication · Stabilization Phase</div>
+      <h2 class="scene-title">Maya is stabilizing. Her parent is terrified.</h2>
+      <p class="scene-body">
+        The escalated interventions are working. SpO₂ is back to 94% and Maya's GCS has normalized. She's on high-flow O₂ and the physician has ordered admission to the PICU for observation.
+        <br><br>
+        Maya's parent — who has been in the room the entire time — is shaking. They say: <em>"Is she going to be okay? I don't understand what's happening. Did I wait too long to bring her in?"</em>
+        <br><br>
+        You have approximately <strong>90 seconds</strong> before the PICU transport team arrives.
+      </p>
+    </div>
+
+    <div class="choices" id="choices-4">
+      <button class="choice-btn" onclick="choose(4,'A')">
+        <span class="choice-letter">A</span>
+        <span class="choice-text">Give a brief, honest update: Maya is breathing better, she's going to the PICU as a precaution, and the team there will explain everything</span>
+        <span class="choice-sub">Reassure without over-promising; defer detailed explanation to PICU team</span>
+      </button>
+      <button class="choice-btn" onclick="choose(4,'B')">
+        <span class="choice-letter">B</span>
+        <span class="choice-text">Provide a detailed clinical explanation of reactive airway disease, the treatments used, and what to expect in the PICU</span>
+        <span class="choice-sub">Parents deserve full information</span>
+      </button>
+      <button class="choice-btn" onclick="choose(4,'C')">
+        <span class="choice-letter">C</span>
+        <span class="choice-text">Tell the parent that Maya is fine now and there is nothing to worry about</span>
+        <span class="choice-sub">Ease the anxiety immediately</span>
+      </button>
+    </div>
+
+    <div class="feedback correct" id="fb-4-A">
+      <span class="feedback-icon">✓</span><strong>Excellent patient-family communication.</strong> Honest, calm, and appropriately scoped for the time available. You're not withholding information — you're being realistic about what can be communicated meaningfully in 90 seconds under stress.
+    </div>
+    <div class="feedback partial" id="fb-4-B">
+      <span class="feedback-icon">△</span><strong>Right intention, wrong moment.</strong> Full disclosure is important, but a panicked parent in 90 seconds is unlikely to retain a detailed clinical briefing. Prioritize emotional reassurance and a clear handoff — the PICU team will have time for a thorough family conversation.
+    </div>
+    <div class="feedback incorrect" id="fb-4-C">
+      <span class="feedback-icon">✕</span><strong>Avoid false reassurance.</strong> Maya is being admitted to the PICU — telling a parent "there's nothing to worry about" is inaccurate and erodes trust when reality doesn't match. Honest, calm communication — even when brief — is always the right approach.
+    </div>
+    <button class="continue-btn" id="cont-4" onclick="showOutcome()">See outcome & xAPI data →</button>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       OUTCOME
+  ════════════════════════════════════════ -->
+  <div class="scene" id="scene-outcome">
+    <div id="outcome-card-container"></div>
+
+    <div class="xapi-preview">
+      <div class="xapi-header">📡 xAPI statements generated by this session</div>
+      <div class="xapi-row head">
+        <div class="xapi-cell">Actor</div>
+        <div class="xapi-cell">Verb</div>
+        <div class="xapi-cell">Object</div>
+        <div class="xapi-cell">Result</div>
+      </div>
+      <div id="xapi-rows"></div>
+    </div>
+
+    <div class="xapi-note" style="margin-bottom:16px">
+      <strong>What this data tells us:</strong> Every decision node, path taken, response quality, and time-on-task is captured — not just a final score. Instructors can see exactly where learners struggled, which decisions were most commonly incorrect, and whether performance improved across attempts. Competency tags (not shown here) would link each decision to specific clinical competency identifiers.
+    </div>
+
+    <div style="text-align:center; margin-top:8px">
+      <button class="restart-btn" onclick="restart()">↺ Restart scenario</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const choices = {}; // scene -> choice letter
+  const feedback_quality = { correct: 3, partial: 2, incorrect: 1 };
+  const startTime = Date.now();
+  const sceneTimes = {};
+  let currentScene = 1;
+
+  const correct = { 1:'B', 2:'A', 3:'A', 4:'A' };
+  const partial  = { 1:'A', 2:'B', 3:'C', 4:'B' };
+
+  function quality(scene, letter) {
+    if (letter === correct[scene]) return 'correct';
+    if (letter === partial[scene])  return 'partial';
+    return 'incorrect';
+  }
+
+  function choose(scene, letter) {
+    if (choices[scene]) return; // already answered
+    choices[scene] = letter;
+    sceneTimes[scene] = Math.round((Date.now() - startTime) / 1000);
+
+    // Disable buttons
+    document.querySelectorAll(`#choices-${scene} .choice-btn`).forEach(b => {
+      b.style.pointerEvents = 'none';
+      b.style.opacity = '.5';
+    });
+    // Highlight chosen
+    const chosen = document.querySelectorAll(`#choices-${scene} .choice-btn`)[['A','B','C'].indexOf(letter)];
+    chosen.style.opacity = '1';
+    const q = quality(scene, letter);
+    chosen.style.borderColor = q === 'correct' ? 'rgba(30,138,94,.7)' : q === 'partial' ? 'rgba(230,168,23,.7)' : 'rgba(192,57,43,.7)';
+    chosen.style.background  = q === 'correct' ? 'rgba(30,138,94,.15)' : q === 'partial' ? 'rgba(230,168,23,.1)' : 'rgba(192,57,43,.12)';
+
+    // Show feedback
+    const fbId = `fb-${scene}-${letter}`;
+    const fb = document.getElementById(fbId);
+    if (fb) fb.classList.add('show');
+
+    // Show continue
+    const cont = document.getElementById(`cont-${scene}`);
+    if (cont) cont.classList.add('show');
+  }
+
+  function goTo(scene) {
+    document.getElementById(`scene-${currentScene}`).classList.remove('active');
+    currentScene = scene;
+    document.getElementById(`scene-${scene}`).classList.add('active');
+    updateProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function updateProgress() {
+    const pct = Math.round(((currentScene - 1) / 4) * 100);
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-text').textContent =
+      currentScene <= 4 ? `Scene ${currentScene} of 4` : 'Complete';
+    document.getElementById('progress-pct').textContent = pct + '%';
+  }
+
+  function totalScore() {
+    let s = 0;
+    for (let i = 1; i <= 4; i++) {
+      s += feedback_quality[quality(i, choices[i])] || 0;
+    }
+    return s; // max 12
+  }
+
+  function showOutcome() {
+    const score = totalScore();
+    const elapsed = Math.round((Date.now() - startTime) / 1000);
+    const mins = Math.floor(elapsed / 60);
+    const secs = elapsed % 60;
+
+    let tier, icon, title, body, cardClass;
+    if (score >= 10) {
+      tier = 'good'; icon = '🟢'; title = 'Strong Clinical Performance';
+      body = 'Maya received timely, evidence-based care at each decision point. Your prioritization of oxygenation, clinical assessment, and appropriate escalation reflects sound pediatric triage reasoning.';
+      cardClass = 'good';
+    } else if (score >= 6) {
+      tier = 'partial'; icon = '🟡'; title = 'Competent — With Room to Grow';
+      body = 'You made several strong decisions but hesitated or chose suboptimally at key moments. Review the feedback on your partial or incorrect choices — the clinical reasoning behind them is where the learning lives.';
+      cardClass = 'partial';
+    } else {
+      tier = 'poor'; icon = '🔴'; title = 'Critical Gaps Identified';
+      body = 'Several decision points reflected significant gaps in pediatric triage prioritization. This scenario is designed for safe practice — review each decision point carefully and attempt again.';
+      cardClass = 'poor';
+    }
+
+    const pct = Math.round((score / 12) * 100);
+
+    document.getElementById('outcome-card-container').innerHTML = `
+      <div class="outcome-card ${cardClass}">
+        <div class="outcome-icon">${icon}</div>
+        <h2 class="outcome-title">${title}</h2>
+        <p class="outcome-body">${body}</p>
+        <div class="score-row">
+          <div class="score-item"><div class="score-num">${pct}%</div><div class="score-lbl">Performance</div></div>
+          <div class="score-item"><div class="score-num">${score}/12</div><div class="score-lbl">Score</div></div>
+          <div class="score-item"><div class="score-num">${mins}m ${secs}s</div><div class="score-lbl">Time</div></div>
+          <div class="score-item"><div class="score-num">4/4</div><div class="score-lbl">Decisions</div></div>
+        </div>
+      </div>`;
+
+    // Build xAPI rows
+    const verbs = { correct: 'demonstrated', partial: 'attempted', incorrect: 'struggled-with' };
+    const objects = [
+      'Pediatric Triage: Initial O₂ Decision',
+      'Pediatric Triage: Bronchodilator Assessment',
+      'Pediatric Triage: Deterioration Escalation',
+      'Pediatric Triage: Family Communication',
+    ];
+    const comps = ['COMP-NUR-301','COMP-NUR-301','COMP-NUR-302','COMP-NUR-304'];
+    const resultMap = {
+      correct: { cls:'tag-result', label:'Pass' },
+      partial: { cls:'tag-result warn', label:'Partial' },
+      incorrect: { cls:'tag-result bad', label:'Needs review' },
+    };
+
+    let rows = '';
+    // Scenario start
+    rows += `<div class="xapi-row"><div class="xapi-cell tag-actor">Learner</div><div class="xapi-cell tag-verb">launched</div><div class="xapi-cell tag-object">Pediatric Triage Scenario</div><div class="xapi-cell tag-result">—</div></div>`;
+
+    for (let i = 1; i <= 4; i++) {
+      const q = quality(i, choices[i]);
+      const v = verbs[q];
+      const r = resultMap[q];
+      const t = sceneTimes[i] ? `${sceneTimes[i]}s` : '—';
+      rows += `<div class="xapi-row">
+        <div class="xapi-cell tag-actor">Learner</div>
+        <div class="xapi-cell tag-verb">${v}</div>
+        <div class="xapi-cell tag-object">${objects[i-1]} <span style="color:var(--muted);font-size:11px">[${comps[i-1]}]</span></div>
+        <div class="xapi-cell ${r.cls}">${r.label} · ${t}</div>
+      </div>`;
+    }
+    rows += `<div class="xapi-row"><div class="xapi-cell tag-actor">Learner</div><div class="xapi-cell tag-verb">completed</div><div class="xapi-cell tag-object">Pediatric Triage Scenario</div><div class="xapi-cell tag-result">${pct}% · ${mins}m ${secs}s</div></div>`;
+    document.getElementById('xapi-rows').innerHTML = rows;
+
+    document.getElementById(`scene-${currentScene}`).classList.remove('active');
+    currentScene = 'outcome';
+    document.getElementById('scene-outcome').classList.add('active');
+    document.getElementById('progress-bar').style.width = '100%';
+    document.getElementById('progress-pct').textContent = '100%';
+    document.getElementById('progress-text').textContent = 'Complete';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function restart() {
+    for (let k in choices) delete choices[k];
+    for (let k in sceneTimes) delete sceneTimes[k];
+    document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.feedback').forEach(f => f.classList.remove('show'));
+    document.querySelectorAll('.continue-btn').forEach(b => b.classList.remove('show'));
+    document.querySelectorAll('.choice-btn').forEach(b => {
+      b.style.pointerEvents = '';
+      b.style.opacity = '';
+      b.style.borderColor = '';
+      b.style.background = '';
+    });
+    currentScene = 1;
+    document.getElementById('scene-1').classList.add('active');
+    updateProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  updateProgress();
+</script>
+</body>
+</html>
