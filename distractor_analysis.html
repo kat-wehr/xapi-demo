@@ -1,0 +1,134 @@
+
+<div style="padding: 1rem 0 0; font-family: var(--font-sans, sans-serif);">
+
+<div id="tabs" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1.25rem;"></div>
+
+<div id="panel"></div>
+
+<div style="margin-top:1.5rem; border-top: 0.5px solid var(--color-border-tertiary, #e0ddd6); padding-top:1rem;">
+  <p style="font-size:13px; color:var(--color-text-secondary, #73726c); margin:0;">Cohort: 30 learners · First attempt only · xAPI distractor data, Pediatric Triage Scenario</p>
+</div>
+
+</div>
+
+<script>
+const scenes = [
+  {
+    label: 'Scene 1 — O₂ decision',
+    comp: 'COMP-NUR-301',
+    correct: { label: 'B — O₂ immediately, then assess', n: 14 },
+    partial:  { label: 'A — History first', n: 10 },
+    incorrect:{ label: 'C — Wait for physician orders', n: 6 },
+    flag: 'warn',
+    flagLabel: 'Pattern flagged',
+    insight: '16 of 30 learners did not prioritise oxygenation before assessment or escalation. The 6 learners choosing C reveal a scope-of-practice gap — they believe a physician order is required for supplemental O₂. This is a discrete, teachable misconception that a targeted remediation prompt can address before learners retry.',
+    action: 'Recommended action: Insert a brief scope-of-practice callout before Scene 1 for learners who chose C. Flag COMP-NUR-301 for review in next curriculum sprint.'
+  },
+  {
+    label: 'Scene 2 — bronchodilator',
+    comp: 'COMP-NUR-301',
+    correct: { label: 'A — Prepare albuterol, notify MD', n: 19 },
+    partial:  { label: 'B — Chest X-ray first', n: 8 },
+    incorrect:{ label: 'C — Increase O₂ only', n: 3 },
+    flag: 'ok',
+    flagLabel: 'Performing well',
+    insight: 'Most learners applied empirical treatment reasoning correctly. The 8 choosing B show diagnostic caution that is clinically understandable but represents a sequencing gap — diagnosis before stabilisation. Only 3 conflated compensation with treatment, a strong result.',
+    action: 'Recommended action: Reinforce empirical treatment reasoning in scene feedback. No major curriculum change needed; monitor across next cohort.'
+  },
+  {
+    label: 'Scene 3 — escalation',
+    comp: 'COMP-NUR-302',
+    correct: { label: 'A — NRB mask + IV magnesium', n: 11 },
+    partial:  { label: 'C — Prep intubation', n: 13 },
+    incorrect:{ label: 'B — Continue and monitor', n: 6 },
+    flag: 'danger',
+    flagLabel: 'Critical gap identified',
+    insight: '19 of 30 learners did not select the evidence-based escalation step. 13 jumped directly to intubation preparation — skipping the magnesium sulfate and NRB steps that should come first. This is a systematic pattern, not individual error, and suggests the escalation ladder for severe paediatric asthma is not well internalised across the cohort.',
+    action: 'Recommended action: Add a dedicated microlearning module on the paediatric asthma escalation ladder before this scenario is deployed at scale. COMP-NUR-302 requires targeted instructional attention.'
+  },
+  {
+    label: 'Scene 4 — communication',
+    comp: 'COMP-NUR-304',
+    correct: { label: 'A — Brief, honest, calm update', n: 20 },
+    partial:  { label: 'B — Full clinical briefing', n: 7 },
+    incorrect:{ label: 'C — False reassurance', n: 3 },
+    flag: 'ok',
+    flagLabel: 'Performing well',
+    insight: 'Communication under pressure is a strong suit for this cohort. The 7 choosing B over-index on information delivery — a right instinct with poor timing awareness. The 3 choosing false reassurance are worth watching; this pattern in clinical settings erodes patient trust.',
+    action: 'Recommended action: Strengthen time-pressure framing in Scene 4 setup copy. Consider a follow-up scenario focused on delivering difficult news with limited time.'
+  }
+];
+
+const flagStyles = {
+  warn:   { bg: '#fef3c7', color: '#92400e' },
+  ok:     { bg: '#d1fae5', color: '#065f46' },
+  danger: { bg: '#fee2e2', color: '#991b1b' }
+};
+
+let current = 0;
+
+function renderTabs() {
+  const el = document.getElementById('tabs');
+  el.innerHTML = scenes.map((s, i) => `
+    <button onclick="show(${i})" style="
+      cursor:pointer; padding:6px 14px; border-radius:6px; font-size:13px;
+      border: 0.5px solid ${i===current ? '#185FA5' : '#b4b2a9'};
+      color: ${i===current ? '#185FA5' : '#73726c'};
+      background: ${i===current ? '#E6F1FB' : 'transparent'};
+      font-weight: ${i===current ? '500' : '400'};
+      font-family: var(--font-sans, sans-serif);
+    ">${s.label}</button>
+  `).join('');
+}
+
+function show(i) {
+  current = i;
+  renderTabs();
+  const s = scenes[i];
+  const total = s.correct.n + s.partial.n + s.incorrect.n;
+  const pct = n => Math.round(n / total * 100);
+  const fs = flagStyles[s.flag];
+
+  const barRow = (label, n, bg, textColor, choiceLabel) => `
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+      <div style="font-size:13px; color:#73726c; width:72px; flex-shrink:0; text-align:right;">${label}</div>
+      <div style="flex:1; height:26px; background:#f1efe8; border-radius:4px; overflow:hidden;">
+        <div style="width:${pct(n)}%; height:100%; background:${bg}; border-radius:4px; display:flex; align-items:center; padding-left:10px; font-size:12px; font-weight:500; color:${textColor}; white-space:nowrap; overflow:hidden; box-sizing:border-box;">
+          ${choiceLabel} — ${n} learners (${pct(n)}%)
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('panel').innerHTML = `
+    <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:1rem;">
+      <div style="background:#f1efe8; border-radius:8px; padding:12px;">
+        <div style="font-size:22px; font-weight:500; color:#1D9E75;">${s.correct.n}</div>
+        <div style="font-size:12px; color:#73726c; margin-top:2px;">Correct (${pct(s.correct.n)}%)</div>
+      </div>
+      <div style="background:#f1efe8; border-radius:8px; padding:12px;">
+        <div style="font-size:22px; font-weight:500; color:#BA7517;">${s.partial.n}</div>
+        <div style="font-size:12px; color:#73726c; margin-top:2px;">Partial (${pct(s.partial.n)}%)</div>
+      </div>
+      <div style="background:#f1efe8; border-radius:8px; padding:12px;">
+        <div style="font-size:22px; font-weight:500; color:#A32D2D;">${s.incorrect.n}</div>
+        <div style="font-size:12px; color:#73726c; margin-top:2px;">Incorrect (${pct(s.incorrect.n)}%)</div>
+      </div>
+    </div>
+
+    ${barRow('Correct', s.correct.n, '#1D9E75', '#E1F5EE', s.correct.label)}
+    ${barRow('Partial', s.partial.n, '#BA7517', '#FAEEDA', s.partial.label)}
+    ${barRow('Incorrect', s.incorrect.n, '#A32D2D', '#FCEBEB', s.incorrect.label)}
+
+    <div style="border-radius:12px; border:0.5px solid #d3d1c7; background:#ffffff; padding:1rem 1.25rem; margin-top:1rem;">
+      <span style="display:inline-block; font-size:11px; font-weight:500; padding:3px 10px; border-radius:4px; margin-bottom:10px; background:${fs.bg}; color:${fs.color};">
+        ${s.flagLabel} · ${s.comp}
+      </span>
+      <p style="font-size:13px; color:#73726c; margin:0 0 10px; line-height:1.65;">${s.insight}</p>
+      <p style="font-size:13px; color:#3d3d3a; margin:0; font-weight:500; line-height:1.5;">${s.action}</p>
+    </div>
+  `;
+}
+
+show(0);
+</script>
